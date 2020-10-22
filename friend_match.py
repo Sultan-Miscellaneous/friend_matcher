@@ -66,22 +66,12 @@ class Student:
                 for each_attr2_val in attr2.value:
                     similarity = calculate_similarity(
                         each_attr1_val, each_attr2_val)
-                    # print('attr1.val: ' + each_attr1_val + ', attr2_val ' +
-                    #       each_attr2_val + ' similarity: ' + str(similarity))
                     if threshold_lower < similarity and similarity < threshold_upper:
-                        # don't break, maybe something more similar is coming
-                        # print('similarity resolved to 0.5')
                         scores.append(0.5)
                     elif similarity > threshold_upper:
-                        # can't get better than this, so break
-                        # print('similarity resolved to 1')
                         scores.append(1)
                         break
-                # else:
-                #     print('similarity resolved to 0')
                 total_score.append(max(scores))
-            # print(attr1.value)
-            # print(total_score)
             return sum(total_score)
 
         def get_attr_comparison_score_with_custom_rule(self, custom_rule, attr2):
