@@ -2,6 +2,7 @@ import csv
 from functools import partial
 import spacy
 
+print('Starting Friend Matcher!')
 print('Loading spacey default model')
 nlp = spacy.load("en_core_web_lg")
 print('Done')
@@ -287,12 +288,12 @@ def main():
     (header_list, student_list) = Student.load_master_list('master_list.csv')
     target_name = load_target_student_name('target.txt')
     
-    print('Target Student Specified: ' + target_name)
+    print('\nTarget Student Specified: \n' + target_name)
 
     candidate_names = load_student_names_from_candidate_list(
         'candidate_list.txt')
 
-    print('Candidate Students Specified: ' + '\n'.join(candidate_names))
+    print('\nCandidate Students Specified: \n' + '\n'.join(candidate_names))
 
     try:
         target_student = list(filter(
@@ -305,23 +306,30 @@ def main():
         lambda student: student.user_info_attributes['name'].value[0] in candidate_names, student_list))
     
     if(len(candidate_students) > 0):
-        print('Evaluating friendship score from predefined attribute list')
+         
+        if len(candidate_students) != len(candidate_names):
+            print('\nWARNING: Some invalid student names detected (I can\'t find them in the master list!)...')
+            print('Proceeding with the following remaining valid students:')
+            for each_student in candidate_students:
+                print(each_student.user_info_attributes['name'].value[0])
+        
+        print('\nEvaluating friendship score from predefined attribute list')
         candidate_scores_from_predefined_attributes = [
             target_student.friendship_score_from_predefined_attributes(
                 candidate)
             for candidate in candidate_students
         ]
-        print('Evaluating friendship score from userdefined attribute list')
+        print('\nEvaluating friendship score from userdefined attribute list')
         candidate_scores_from_userdefined_attributes = [
             target_student.friendship_score_from_userdefined_attributes(
                 candidate)
             for candidate in candidate_students
         ]
-        print('Writing final scores to output csv file')
+        print('\nWriting final scores to output excel file')
         write_output_to_csv('scores.csv', target_student, candidate_students,
                             candidate_scores_from_predefined_attributes, candidate_scores_from_userdefined_attributes)
     else:
-        print('ERROR: Invalid input files specified, check and make sure candidate_list file has valid students')
+        print('\nERROR: Invalid input files specified, check and make sure candidate_list file has valid students')
         raise
 
 
