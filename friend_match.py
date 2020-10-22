@@ -5,14 +5,7 @@ from functools import partial
 class Student:
 
     class Attribute():
-
-        def get_attr_compare_score(self, attr2):
-            attr1 = self
-            if len(attr1.value) > len(attr2.value):
-                attr2, attr1 = attr1, attr2
-            return sum([(1 if each_val in attr2.value else 0) for each_val in attr1.value])
-
-        def __init__(self, name='', index=0, data=None, comparison_method=None):
+        def __init__(self, name='', index=0, data=None, custom_rule=None):
             self.name = name
             self.index = index
 
@@ -21,27 +14,45 @@ class Student:
             else:
                 self.value = data
 
-            if comparison_method is None:
-                self.attr_comparison_score = partial(
-                    self.get_attr_compare_score)
+            self.get_attr_comparison_score = partial(
+                self.get_attr_comparison_score_with_custom_rule, custom_rule)
+
+        def get_attr_comparison_score_with_custom_rule(self, custom_rule, attr2):
+            attr1 = self
+            if len(attr1.value) > len(attr2.value):
+                attr2, attr1 = attr1, attr2
+            if custom_rule is None:
+                return sum([(1 if each_val in attr2.value else 0) for each_val in attr1.value])
             else:
-                self.attr_comparison_score = comparison_method
+                return custom_rule(attr1, attr2)
 
         def load_value_and_return_attribute(self, data, delimiter=''):
             self.value = data.split(delimiter)
 
     def __init__(self):
+        self.user_info_attributes = {
+            'name': Student.Attribute('name', 0),
+            'email': Student.Attribute('email', 1),
+            'location': Student.Attribute('location', 2),
+            'meetup_options': Student.Attribute('meetup_options', 3)
+        }
+
         self.pre_defined_attributes = [
-            Student.Attribute('name', 0),
-            Student.Attribute('email', 1),
-            Student.Attribute('location', 2),
-            Student.Attribute('meetup_options', 3),
             Student.Attribute('discussion_topics', 4),
             Student.Attribute('qualities_in_friend', 5),
             Student.Attribute('morning_or_night_person', 6),
             Student.Attribute('planning_type', 7),
-            Student.Attribute('diet_pref', 8),
-            Student.Attribute('ghosts', 9),
+            Student.Attribute('diet_pref', 8, custom_rule=lambda attr1, attr2: (
+                1 if attr1.value[0] == attr2.value[0]
+                else 0.5 if attr1.value[0] == 'Yes' and attr2.value[0] == 'I eat vegetarian/vegan often but do also eat meat'
+                else 0.5 if attr1.value[0] == 'I eat vegetarian/vegan often but do also eat meat' and attr2.value[0] == 'Yes'
+                else 0
+            )),
+            Student.Attribute('ghosts', 9, custom_rule=lambda attr1, attr2: (
+                1 if attr1.value[0] == attr2.value[0]
+                else 0.5 if attr1.value[0] == 'Yes' and attr2.value[0] == 'Unsure'
+                else 0.5 if attr1.value[0] == 'Unsure' and attr2.value[0] == 'Yes'
+                else 0)),
             Student.Attribute('traits', 10)
         ]
 
@@ -56,6 +67,10 @@ class Student:
     def __str__(self):
         str = ''
         str = str + (repr(self)) + '\n'
+        str = str + ('UserInfo Attributes:') + '\n'
+        for (key, each_attr) in self.user_info_attributes.items():
+            str = str + \
+                (f'index: {each_attr.index}, name: {each_attr.name}, value: {each_attr.value}') + '\n'
         str = str + ('Predefined Attributes:') + '\n'
         for each_attr in self.pre_defined_attributes:
             str = str + \
@@ -66,12 +81,19 @@ class Student:
                 (f'index: {each_attr.index}, name: {each_attr.name}, value: {each_attr.value}') + '\n'
         return str
 
-    @staticmethod
-    def friendship_score_from_predefined_attributes(first_student, second_student):
+    def can_meet(self, second_student):
+        meet_score = self.user_info_attributes['meetup_options'].get_attr_comparison_score(
+            second_student.user_info_attributes['meetup_options'])
+        return meet_score > 0
+
+    def friendship_score_from_predefined_attributes(self, second_student):
+        first_student = self
         score = 0
-        for (first_student_attr, second_student_attr) in zip(first_student.pre_defined_attributes, second_student.pre_defined_attributes):
-            score = score + \
-                first_student_attr.attr_comparison_score(second_student_attr)
+        if first_student.can_meet(second_student):
+            for (first_student_attr, second_student_attr) in zip(first_student.pre_defined_attributes, second_student.pre_defined_attributes):
+                score = score + \
+                    first_student_attr.get_attr_comparison_score(
+                        second_student_attr)
         return score
 
     @classmethod
@@ -84,10 +106,15 @@ class Student:
             for row in csv_reader:
                 if line_count > 0:
                     new_student = Student()
+                    for each_attr in new_student.user_info_attributes.values():
+                        each_attr.load_value_and_return_attribute(
+                            data=row[each_attr.index], delimiter=',')
                     for each_attr in new_student.pre_defined_attributes:
-                        each_attr.load_value_and_return_attribute(data=row[each_attr.index], delimiter=',')
+                        each_attr.load_value_and_return_attribute(
+                            data=row[each_attr.index], delimiter=',')
                     for each_attr in new_student.user_defined_attributes:
-                        each_attr.load_value_and_return_attribute(data=row[each_attr.index], delimiter=',')
+                        each_attr.load_value_and_return_attribute(
+                            data=row[each_attr.index], delimiter=',')
                     student_list.append(new_student)
                 else:
                     header_list = row
@@ -98,8 +125,10 @@ class Student:
 
 def main():
     (header_list, student_list) = Student.load_master_list('master_list.csv')
-    print(Student.friendship_score_from_predefined_attributes(
-        student_list[0], student_list[1]))
+    print(student_list[39].friendship_score_from_predefined_attributes(
+        student_list[40]))
+    print(student_list[39])
+    print(student_list[40])
 
 
 if __name__ == "__main__":
