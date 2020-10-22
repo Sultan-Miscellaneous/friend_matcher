@@ -6,7 +6,6 @@ print('Loading spacey default model')
 nlp = spacy.load("en_core_web_lg")
 print('Done')
 
-
 def process_text(text):
     doc = nlp(text.lower())
     result = []
@@ -22,9 +21,14 @@ def process_text(text):
 
 
 def calculate_similarity(text1, text2):
-    base = nlp(process_text(text1))
-    compare = nlp(process_text(text2))
-    return base.similarity(compare)
+    t1 = process_text(text1)
+    t2 = process_text(text2)
+    if(t1 != '' and t2 != ''):
+        base = nlp(t1)
+        compare = nlp(t2)
+        return base.similarity(compare)
+    else:
+        return 0
 
 
 class Student:
@@ -101,22 +105,22 @@ class Student:
         }
 
         self.pre_defined_attributes = [
-            Student.Attribute(name='discussion_topics', index=4),
-            Student.Attribute(name='qualities_in_friend', index=5),
-            Student.Attribute(name='morning_or_night_person', index=6),
-            Student.Attribute(name='planning_type', index=7),
-            Student.Attribute(name='diet_pref', index=8, custom_rule=lambda attr1, attr2: (
+            Student.Attribute(name='discussion_topics', index=4, comparison_method='exact' ),
+            Student.Attribute(name='qualities_in_friend', index=5, comparison_method='exact' ),
+            Student.Attribute(name='morning_or_night_person', index=6, comparison_method='exact' ),
+            Student.Attribute(name='planning_type', index=7, comparison_method='exact' ),
+            Student.Attribute(name='diet_pref', index=8, comparison_method='exact', custom_rule=lambda attr1, attr2: ( 
                 1 if attr1.value[0] == attr2.value[0]
                 else 0.5 if attr1.value[0] == 'Yes' and attr2.value[0] == 'I eat vegetarian/vegan often but do also eat meat'
                 else 0.5 if attr1.value[0] == 'I eat vegetarian/vegan often but do also eat meat' and attr2.value[0] == 'Yes'
                 else 0
             )),
-            Student.Attribute(name='ghosts', index=9, custom_rule=lambda attr1, attr2: (
+            Student.Attribute(name='ghosts', index=9, comparison_method='exact', custom_rule=lambda attr1, attr2: ( 
                 1 if attr1.value[0] == attr2.value[0]
                 else 0.5 if attr1.value[0] == 'Yes' and attr2.value[0] == 'Unsure'
                 else 0.5 if attr1.value[0] == 'Unsure' and attr2.value[0] == 'Yes'
                 else 0)),
-            Student.Attribute(name='traits', index=10)
+            Student.Attribute(name='traits', index=10, comparison_method='exact' )
         ]
 
         self.user_defined_attributes = [
@@ -158,6 +162,7 @@ class Student:
         first_student = self
         score = 0
         if first_student.can_meet(second_student):
+            print('Comparing Target To: ' + second_student.user_info_attributes['name'].value[0])
             for (first_student_attr, second_student_attr) in zip(first_student.pre_defined_attributes, second_student.pre_defined_attributes):
                 score = score + \
                     first_student_attr.get_attr_comparison_score(
@@ -168,6 +173,7 @@ class Student:
         first_student = self
         scores = [0]*len(first_student.user_defined_attributes)
         if first_student.can_meet(second_student):
+            print('Comparing Target To: ' + second_student.user_info_attributes['name'].value[0])
             scores = [
                 first_student_attr.get_attr_comparison_score(
                     second_student_attr)
@@ -290,8 +296,14 @@ def write_output_to_csv(filename, target_student, candidate_students, predef_sco
 def main():
     (header_list, student_list) = Student.load_master_list('master_list.csv')
     target_name = load_target_student_name('target.txt')
+    
+    print('Target Student Specified: ' + target_name)
+
     candidate_names = load_student_names_from_candidate_list(
         'candidate_list.txt')
+
+    print('Candidate Students Specified: ' + '\n'.join(candidate_names))
+
     try:
         target_student = list(filter(
             lambda student: target_name in student.user_info_attributes['name'].value, student_list))[0]
