@@ -51,8 +51,11 @@ class Student:
 
         def get_attr_spacey_comparison_with_thresholds(self, threshold_lower, threshold_upper, attr2):
             attr1 = self
+            if len(attr1.value) == 0 or len(attr2.value) == 0:
+                return 0
             if len(attr1.value) > len(attr2.value):
                 attr2, attr1 = attr1, attr2
+                
             total_score = []
             for each_attr1_val in attr1.value:
                 scores = [0]
@@ -163,12 +166,13 @@ class Student:
 
     def friendship_score_from_userdefined_attributes(self, second_student):
         first_student = self
+        scores = [0]*len(first_student.user_defined_attributes)
         if first_student.can_meet(second_student):
             scores = [
                 first_student_attr.get_attr_comparison_score(
                     second_student_attr)
                 for (first_student_attr, second_student_attr) in zip(first_student.user_defined_attributes, second_student.user_defined_attributes)
-                                                                     if len(first_student_attr.value) > 0 and len(second_student_attr.value) > 0
+                if len(first_student_attr.value) > 0 and len(second_student_attr.value) > 0
             ]
         return scores
 
@@ -208,10 +212,18 @@ def load_student_names_from_candidate_list(filename):
     with open(filename, 'r') as candidate_file:
         return [name.strip() for name in candidate_file if name != '']
 
+class Tracking_writer:
+    def __init__(self, output_file):
+        self.writer = csv.writer(output_file)
+        self.rows_written = 0
+    def writerow(self, list):
+        self.writer.writerow(list)
+        self.rows_written = self.rows_written + 1
+
 
 def write_output_to_csv(filename, target_student, candidate_students, predef_scores, userdef_scores):
     with open(filename, 'w') as output_file:
-        writer = csv.writer(output_file)
+        writer = Tracking_writer(output_file)
         newline = ['']
         user_info_headers = [
             header for header in target_student.user_info_attributes.keys()]
@@ -240,50 +252,75 @@ def write_output_to_csv(filename, target_student, candidate_students, predef_sco
             ['Scores for user defined responses to the following questions:'])
         score_eval_header = ['name']
         userdef_questions = [
-            attribute.name for attribute in target_student.user_defined_attributes]
+            attribute.name for attribute in target_student.user_defined_attributes
+        ]
         for each_question in userdef_questions:
             score_eval_header.append('Target response ' + each_question)
             score_eval_header.append('Candidate response ' + each_question)
             score_eval_header.append('Suggested Score ')
+            
         score_eval_header.append('Base Score')
         score_eval_header.append('Total Score')
         writer.writerow(score_eval_header)
+        
         for (candidate, candidate_predef_score, candidate_userdef_scores) in zip(candidate_students, predef_scores, userdef_scores):
+            row_index = 0
             candidate_data = [candidate.user_info_attributes['name'].value[0]]
+            attr_score_index = []
             for (target_attribute, candidate_attribute, userdef_score) in zip(
                 target_student.user_defined_attributes, candidate.user_defined_attributes, candidate_userdef_scores
             ):
+                row_index = row_index + 1
                 candidate_data.append(','.join(target_attribute.value))
+                row_index = row_index + 1
                 candidate_data.append(','.join(candidate_attribute.value))
+                row_index = row_index + 1
+                attr_score_index.append(row_index)
                 candidate_data.append(userdef_score)
+                
             candidate_data.append(candidate_predef_score)
+            row_index = row_index + 1
+            attr_score_index.append(row_index)
+            suggested_score_cells = list(map(lambda x: chr(ord('A')+x)+str(writer.rows_written+1), attr_score_index))
+            sum_equation = '=' + '+'.join(suggested_score_cells)
+            candidate_data.append(sum_equation)
             writer.writerow(candidate_data)
+
 
 def main():
     (header_list, student_list) = Student.load_master_list('master_list.csv')
     target_name = load_target_student_name('target.txt')
     candidate_names = load_student_names_from_candidate_list(
         'candidate_list.txt')
-    target_student = list(filter(
-        lambda student: target_name in student.user_info_attributes['name'].value, student_list))[0]
+    try:
+        target_student = list(filter(
+            lambda student: target_name in student.user_info_attributes['name'].value, student_list))[0]
+    except:
+        print('ERROR: Invalid input files specified, check and make target_student file has a valid students')
+        raise
+    
     candidate_students = list(filter(
         lambda student: student.user_info_attributes['name'].value[0] in candidate_names, student_list))
-
-    print('Evaluating friendship score from predefined attribute list')
-    candidate_scores_from_predefined_attributes = [
-        target_student.friendship_score_from_predefined_attributes(
-            candidate)
-        for candidate in candidate_students
-    ]
-    print('Evaluating friendship score from userdefined attribute list')
-    candidate_scores_from_userdefined_attributes = [
-        target_student.friendship_score_from_userdefined_attributes(
-            candidate)
-        for candidate in candidate_students
-    ]
-    print('Writing final scores to output csv file')
-    write_output_to_csv('scores.csv', target_student, candidate_students,
-                        candidate_scores_from_predefined_attributes, candidate_scores_from_userdefined_attributes)
+    
+    if(len(candidate_students) > 0):
+        print('Evaluating friendship score from predefined attribute list')
+        candidate_scores_from_predefined_attributes = [
+            target_student.friendship_score_from_predefined_attributes(
+                candidate)
+            for candidate in candidate_students
+        ]
+        print('Evaluating friendship score from userdefined attribute list')
+        candidate_scores_from_userdefined_attributes = [
+            target_student.friendship_score_from_userdefined_attributes(
+                candidate)
+            for candidate in candidate_students
+        ]
+        print('Writing final scores to output csv file')
+        write_output_to_csv('scores.csv', target_student, candidate_students,
+                            candidate_scores_from_predefined_attributes, candidate_scores_from_userdefined_attributes)
+    else:
+        print('ERROR: Invalid input files specified, check and make sure candidate_list file has valid students')
+        raise
 
 
 if __name__ == "__main__":
