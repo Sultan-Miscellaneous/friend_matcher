@@ -6,6 +6,7 @@ print('Loading spacey default model')
 nlp = spacy.load("en_core_web_lg")
 print('Done')
 
+
 def process_text(text):
     doc = nlp(text.lower())
     result = []
@@ -58,21 +59,22 @@ class Student:
                 for each_attr2_val in attr2.value:
                     similarity = calculate_similarity(
                         each_attr1_val, each_attr2_val)
-                    print('attr1.val: ' + each_attr1_val + ', attr2_val ' + each_attr2_val + ' similarity: ' + str(similarity))
+                    # print('attr1.val: ' + each_attr1_val + ', attr2_val ' +
+                    #       each_attr2_val + ' similarity: ' + str(similarity))
                     if threshold_lower < similarity and similarity < threshold_upper:
                         # don't break, maybe something more similar is coming
-                        print('similarity resolved to 0.5')
+                        # print('similarity resolved to 0.5')
                         scores.append(0.5)
                     elif similarity > threshold_upper:
                         # can't get better than this, so break
-                        print('similarity resolved to 1')
+                        # print('similarity resolved to 1')
                         scores.append(1)
                         break
-                    else:
-                        print('similarity resolved to 0')
+                # else:
+                #     print('similarity resolved to 0')
                 total_score.append(max(scores))
-            print(attr1.value)
-            print(total_score)
+            # print(attr1.value)
+            # print(total_score)
             return sum(total_score)
 
         def get_attr_comparison_score_with_custom_rule(self, custom_rule, attr2):
@@ -89,37 +91,42 @@ class Student:
 
     def __init__(self):
         self.user_info_attributes = {
-            'name': Student.Attribute('name', 0),
-            'email': Student.Attribute('email', 1),
-            'location': Student.Attribute('location', 2),
-            'meetup_options': Student.Attribute('meetup_options', 3)
+            'name': Student.Attribute(name='name', index=0),
+            'email': Student.Attribute(name='email', index=1),
+            'location': Student.Attribute(name='location', index=2),
+            'meetup_options': Student.Attribute(name='meetup_options', index=3)
         }
 
         self.pre_defined_attributes = [
-            Student.Attribute('discussion_topics', 4),
-            Student.Attribute('qualities_in_friend', 5),
-            Student.Attribute('morning_or_night_person', 6),
-            Student.Attribute('planning_type', 7),
-            Student.Attribute('diet_pref', 8, custom_rule=lambda attr1, attr2: (
+            Student.Attribute(name='discussion_topics', index=4),
+            Student.Attribute(name='qualities_in_friend', index=5),
+            Student.Attribute(name='morning_or_night_person', index=6),
+            Student.Attribute(name='planning_type', index=7),
+            Student.Attribute(name='diet_pref', index=8, custom_rule=lambda attr1, attr2: (
                 1 if attr1.value[0] == attr2.value[0]
                 else 0.5 if attr1.value[0] == 'Yes' and attr2.value[0] == 'I eat vegetarian/vegan often but do also eat meat'
                 else 0.5 if attr1.value[0] == 'I eat vegetarian/vegan often but do also eat meat' and attr2.value[0] == 'Yes'
                 else 0
             )),
-            Student.Attribute('ghosts', 9, custom_rule=lambda attr1, attr2: (
+            Student.Attribute(name='ghosts', index=9, custom_rule=lambda attr1, attr2: (
                 1 if attr1.value[0] == attr2.value[0]
                 else 0.5 if attr1.value[0] == 'Yes' and attr2.value[0] == 'Unsure'
                 else 0.5 if attr1.value[0] == 'Unsure' and attr2.value[0] == 'Yes'
                 else 0)),
-            Student.Attribute('traits', 10)
+            Student.Attribute(name='traits', index=10)
         ]
 
         self.user_defined_attributes = [
-            Student.Attribute('tv_shows', 11, threshold_lower=0.80, threshold_upper=0.95, comparison_method='spacey'),
-            Student.Attribute('musical_artists', 12, threshold_lower=0.85, threshold_upper=0.95, comparison_method='spacey'),
-            Student.Attribute('fav_food', 13, threshold_lower=0.60, threshold_upper=0.90, comparison_method='spacey'),
-            Student.Attribute('free_time', 14, threshold_lower=0.50, threshold_upper=0.90, comparison_method='spacey'),
-            Student.Attribute('dream_living', 15, threshold_lower=0.80, threshold_upper=0.90, comparison_method='spacey')
+            Student.Attribute(name='tv_shows', index=11, threshold_lower=0.80,
+                              threshold_upper=0.95, comparison_method='spacey'),
+            Student.Attribute(name='musical_artists', index=12, threshold_lower=0.85,
+                              threshold_upper=0.95, comparison_method='spacey'),
+            Student.Attribute(name='fav_food', index=13, threshold_lower=0.60,
+                              threshold_upper=0.90, comparison_method='spacey'),
+            Student.Attribute(name='free_time', index=14, threshold_lower=0.50,
+                              threshold_upper=0.90, comparison_method='spacey'),
+            Student.Attribute(name='dream_living', index=15, threshold_lower=0.80,
+                              threshold_upper=0.90, comparison_method='spacey')
         ]
 
     def __str__(self):
@@ -153,16 +160,17 @@ class Student:
                     first_student_attr.get_attr_comparison_score(
                         second_student_attr)
         return score
-    
+
     def friendship_score_from_userdefined_attributes(self, second_student):
         first_student = self
-        score = 0
         if first_student.can_meet(second_student):
-            for (first_student_attr, second_student_attr) in zip(first_student.user_defined_attributes, second_student.user_defined_attributes):
-                score = score + \
-                    first_student_attr.get_attr_comparison_score(
-                        second_student_attr)
-        return score
+            scores = [
+                first_student_attr.get_attr_comparison_score(
+                    second_student_attr)
+                for (first_student_attr, second_student_attr) in zip(first_student.user_defined_attributes, second_student.user_defined_attributes)
+                                                                     if len(first_student_attr.value) > 0 and len(second_student_attr.value) > 0
+            ]
+        return scores
 
     @classmethod
     def load_master_list(cls, filename):
@@ -187,17 +195,95 @@ class Student:
                 else:
                     header_list = row
                 line_count += 1
-            print(f'Processed {line_count} lines.')
+            print(f'Loaded {line_count} Students.')
             return (header_list, student_list)
 
 
-def main():
+def load_target_student_name(filename):
+    with open(filename, 'r') as target_student_file:
+        return target_student_file.read().strip()
 
+
+def load_student_names_from_candidate_list(filename):
+    with open(filename, 'r') as candidate_file:
+        return [name.strip() for name in candidate_file if name != '']
+
+
+def write_output_to_csv(filename, target_student, candidate_students, predef_scores, userdef_scores):
+    with open(filename, 'w') as output_file:
+        writer = csv.writer(output_file)
+        newline = ['']
+        user_info_headers = [
+            header for header in target_student.user_info_attributes.keys()]
+        target_info_values = [','.join(attribute.value)
+                              for attribute in target_student.user_info_attributes.values()]
+        candidate_info_values = [
+            [
+                ','.join(attribute.value) for attribute in candidate.user_info_attributes.values()
+            ] for candidate in candidate_students
+        ]
+
+        def addnewline(count):
+            for i in range(0, count):
+                writer.writerow(newline)
+
+        writer.writerow(['Matching The Following Target:'])
+        writer.writerow(user_info_headers)
+        writer.writerow(target_info_values)
+        addnewline(2)
+        writer.writerow(['With the Following Candidates'])
+        writer.writerow(user_info_headers)
+        for row in candidate_info_values:
+            writer.writerow(row)
+        addnewline(4)
+        writer.writerow(
+            ['Scores for user defined responses to the following questions:'])
+        score_eval_header = ['name']
+        userdef_questions = [
+            attribute.name for attribute in target_student.user_defined_attributes]
+        for each_question in userdef_questions:
+            score_eval_header.append('Target response ' + each_question)
+            score_eval_header.append('Candidate response ' + each_question)
+            score_eval_header.append('Suggested Score ')
+        score_eval_header.append('Base Score')
+        score_eval_header.append('Total Score')
+        writer.writerow(score_eval_header)
+        for (candidate, candidate_predef_score, candidate_userdef_scores) in zip(candidate_students, predef_scores, userdef_scores):
+            candidate_data = [candidate.user_info_attributes['name'].value[0]]
+            for (target_attribute, candidate_attribute, userdef_score) in zip(
+                target_student.user_defined_attributes, candidate.user_defined_attributes, candidate_userdef_scores
+            ):
+                candidate_data.append(','.join(target_attribute.value))
+                candidate_data.append(','.join(candidate_attribute.value))
+                candidate_data.append(userdef_score)
+            candidate_data.append(candidate_predef_score)
+            writer.writerow(candidate_data)
+
+def main():
     (header_list, student_list) = Student.load_master_list('master_list.csv')
-    print(student_list[27].friendship_score_from_userdefined_attributes(
-        student_list[26]))
-    print(student_list[27])
-    print(student_list[26])
+    target_name = load_target_student_name('target.txt')
+    candidate_names = load_student_names_from_candidate_list(
+        'candidate_list.txt')
+    target_student = list(filter(
+        lambda student: target_name in student.user_info_attributes['name'].value, student_list))[0]
+    candidate_students = list(filter(
+        lambda student: student.user_info_attributes['name'].value[0] in candidate_names, student_list))
+
+    print('Evaluating friendship score from predefined attribute list')
+    candidate_scores_from_predefined_attributes = [
+        target_student.friendship_score_from_predefined_attributes(
+            candidate)
+        for candidate in candidate_students
+    ]
+    print('Evaluating friendship score from userdefined attribute list')
+    candidate_scores_from_userdefined_attributes = [
+        target_student.friendship_score_from_userdefined_attributes(
+            candidate)
+        for candidate in candidate_students
+    ]
+    print('Writing final scores to output csv file')
+    write_output_to_csv('scores.csv', target_student, candidate_students,
+                        candidate_scores_from_predefined_attributes, candidate_scores_from_userdefined_attributes)
 
 
 if __name__ == "__main__":
